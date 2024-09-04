@@ -1,6 +1,7 @@
-import scrapy
 import os
 import re
+
+import scrapy
 from scrapy.crawler import CrawlerProcess
 
 
@@ -43,7 +44,7 @@ def remove_footnotes(text):
     return re.sub(r' \[ \d+ \]', '', text)
 
 def extract_text_with_spaces(selector):
-    parts = selector.xpath('.//text() | .//br').getall()
+    parts = selector.xpath('.//text()[not(parent::style)] | .//br').getall()
     text_with_spaces = ' '.join(
         part.strip() if part != '<br>' else ' ' for part in parts
     )
