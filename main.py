@@ -1,4 +1,6 @@
 import scrapy
+import os
+import re
 from scrapy.crawler import CrawlerProcess
 
 
@@ -8,9 +10,11 @@ class QuotesSpider(scrapy.Spider):
     results = []
 
     def start_requests(self):
+        absolute_path = os.path.abspath('test-data/list-of-marian-apparitions.html')
+        
         urls = [
-            'https://en.wikipedia.org/wiki/List_of_Marian_apparitions',
-            # 'http://quotes.toscrape.com/page/2/',
+            f'file://{absolute_path}',
+            # 'https://en.wikipedia.org/wiki/List_of_Marian_apparitions',
         ]
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse)
@@ -27,10 +31,16 @@ class QuotesSpider(scrapy.Spider):
                     'category': meta_tr.css('td:first-child[title]').attrib['title'].strip(),
                     'name': extract_text_with_spaces(meta_tr.css('th[data-sort-value]')),
                     'year': meta_tr.css(year_selector).get().strip(),
+                    'description': remove_footnotes(
+                        extract_text_with_spaces(meta_tr.xpath('following-sibling::tr[1]').css('td.description'))
+                    ),
                     # 'tags': quote.css('div.tags a.tag::text').getall(),
                 }
                 self.results.append(result)
                 yield result
+
+def remove_footnotes(text):
+    return re.sub(r' \[ \d+ \]', '', text)
 
 def extract_text_with_spaces(selector):
     parts = selector.xpath('.//text() | .//br').getall()
