@@ -1,9 +1,16 @@
+import sqlite3
 import os
 import re
+from typing import Union
+
 
 import scrapy
 from scrapy.crawler import CrawlerProcess
+from rapidfuzz import fuzz
 
+
+# FETCH THE DATA
+# ===============
 
 class QuotesSpider(scrapy.Spider):
     name = "quotes"
@@ -56,4 +63,132 @@ process.crawl(QuotesSpider)
 process.start()  # the script will block here until the crawling is finished
 
 spider = QuotesSpider()
-print(spider.results)
+# print(spider.results)
+
+
+# PERSIST THE DATA
+# ================
+
+class Event:
+    SIMILARITY_THRESHOLD = 90
+
+    def __init__(self, props):
+        self.category = props['category']
+        self.name = props['name'].strip()
+        self.year = props['year']
+        self.description = props['description']
+
+    def __eq__(self, value: Union['Event', None]) -> bool:
+        # Check only if the _compared_ value is None.
+        # `self` is an instance, therefore it's not None.
+        if value is None:
+            return False
+        
+        name_similarity = fuzz.ratio(self.name, value.name)
+        year_similarity = self.calculate_years_similarity(self.year, value.year)
+        overall_similarity = (name_similarity * 0.7) + (year_similarity * 0.3)
+
+        return overall_similarity >= 90
+    
+    def calculate_years_similarity(self, year1, year2) -> int:
+        if year1 == year2: # Yup. Even if those are None.
+            return 100
+
+        if year1 is None or year2 is None:
+            return 0
+        
+        if abs(year1 - year2) <= 2: # allow a difference of 2 years
+            return self.SIMILARITY_THRESHOLD # less similar because the == is already done earlier
+        
+        return 0 # We covered all the potential cases. By this point it's NOT similar.
+
+
+conn = sqlite3.connect('./data.sqlite3')
+
+cursor = conn.cursor()
+
+cursor.execute('''CREATE TABLE IF NOT EXISTS events
+                  (id INTEGER PRIMARY KEY, category TEXT, name TEXT, year INTEGER, description TEXT)''')
+
+def fetch_all_events(cursor):
+    cursor.execute('''
+        SELECT  *
+        FROM    events
+        ''')
+    columns = [column[0] for column in cursor.description]  # Get column names
+    rows = cursor.fetchall()
+    return [dict(zip(columns, row)) for row in rows]  # Create list of dictionaries
+
+
+def insert_event(conn, event: Event):
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO events (category, name, year, description)
+        VALUES (?, ?, ?, ?)
+        ''', (event.category, event.name, event.year, event.description))
+    conn.commit()
+
+def update_event(conn, event: Event):
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE events
+        SET description = ?
+        WHERE name = ? AND year = ?
+        ''', (event.description, event.name, event.year))
+    conn.commit()
+
+
+events = [Event(event) for event in fetch_all_events(cursor)]
+
+for result in spider.results:
+    event = Event(result)
+
+    # Doesn't exist? Create it:
+    if event not in events:
+        insert_event(conn, event)
+        continue
+    
+    matching_event = next((e for e in events if e == result), None)
+    # Exists and description isn't the same? Update it:
+    if matching_event and matching_event.description != event.description:
+        update_event(conn, event)
+        continue
+
+
+print(events)
+
+# TODO:
+'''
+1. [X] have a class for storing the results/events in objects that we can compare using __eq__().
+2. [X] inside __eq__(), compare:
+    * [X] the name with rapidfuzz
+    * [X] the years (those will be properties of a certain custom type that can be either a year range or a year)
+    * maybe the description
+3. if it's similar over a certain threshold:
+     INSERT
+   else: 
+     UPDATE
+'''
+
+
+event = Event({
+    'category': 'category',
+    'name': 'name and date are the same',
+    'year': '2000',
+    'description': 'description',
+})
+
+# event2 = Event({
+#     'category': 'category',
+#     'name': 'the name and date are the same',
+#     'year': '2000',
+#     'description': 'description',
+# })
+
+# print(event == event2)
+# print(event == None)
+
+# print(event.calculate_years_similarity(event.year, event2.year))
+
+# print(event.calculate_years_similarity(1, 2))
+
