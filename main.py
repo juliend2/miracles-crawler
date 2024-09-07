@@ -85,6 +85,7 @@ class Event:
             return False
         
         name_similarity = fuzz.ratio(self.name, value.name)
+        # TODO: use a type that can be compared for `year`:
         year_similarity = self.calculate_years_similarity(self.year, value.year)
         overall_similarity = (name_similarity * 0.7) + (year_similarity * 0.3)
 
