@@ -37,25 +37,25 @@ class QuotesSpider(scrapy.Spider):
                 
                 result = {
                     'category': meta_tr.css('td:first-child[title]').attrib['title'].strip(),
-                    'name': extract_text_with_spaces(meta_tr.css('th[data-sort-value]')),
+                    'name': self.extract_text_with_spaces(meta_tr.css('th[data-sort-value]')),
                     'year': meta_tr.css(year_selector).get().strip(),
-                    'description': remove_footnotes(
-                        extract_text_with_spaces(meta_tr.xpath('following-sibling::tr[1]').css('td.description'))
+                    'description': self.remove_footnotes(
+                        self.extract_text_with_spaces(meta_tr.xpath('following-sibling::tr[1]').css('td.description'))
                     ),
                     # 'tags': quote.css('div.tags a.tag::text').getall(),
                 }
                 self.results.append(result)
                 yield result
 
-def remove_footnotes(text):
-    return re.sub(r' \[ \d+ \]', '', text)
+    def remove_footnotes(self, text):
+        return re.sub(r' \[ \d+ \]', '', text)
 
-def extract_text_with_spaces(selector):
-    parts = selector.xpath('.//text()[not(parent::style)] | .//br').getall()
-    text_with_spaces = ' '.join(
-        part.strip() if part != '<br>' else ' ' for part in parts
-    )
-    return text_with_spaces
+    def extract_text_with_spaces(self, selector):
+        parts = selector.xpath('.//text()[not(parent::style)] | .//br').getall()
+        text_with_spaces = ' '.join(
+            part.strip() if part != '<br>' else ' ' for part in parts
+        )
+        return text_with_spaces
 
 # Run the spider using CrawlerProcess
 process = CrawlerProcess()
@@ -69,6 +69,23 @@ spider = QuotesSpider()
 # PERSIST THE DATA
 # ================
 
+class Years:
+    def __init__(self, year: Union[int, str]):
+        self.year = year
+
+    def __int__(self):
+        if type(self.year) == type('') and type(re.match(r'\D', self.year)):
+            return int(re.split(r'\D', self.year)[0])
+        return int(self.year)
+
+    # Less or Equal than...
+    def __le__(self, other_year):
+        return self.year <= other_year.year
+
+    def __sub__(self, other_year):       
+        return int(self) - int(other_year)
+
+
 class Event:
     SIMILARITY_THRESHOLD = 90
 
@@ -77,6 +94,9 @@ class Event:
         self.name = props['name'].strip()
         self.year = props['year']
         self.description = props['description']
+
+    def __repr__(self) -> str:
+        return f'{self.name} ({self.year})'
 
     def __eq__(self, value: Union['Event', None]) -> bool:
         # Check only if the _compared_ value is None.
@@ -92,13 +112,16 @@ class Event:
         return overall_similarity >= 90
     
     def calculate_years_similarity(self, year1, year2) -> int:
-        if year1 == year2: # Yup. Even if those are None.
+        y1 = Years(year1)
+        y2 = Years(year2)
+
+        if y1 == y2: # Yup. Even if those are None.
             return 100
 
-        if year1 is None or year2 is None:
+        if y1 is None or y2 is None:
             return 0
         
-        if abs(year1 - year2) <= 2: # allow a difference of 2 years
+        if abs(y1 - y2) <= 2: # allow a difference of 2 years
             return self.SIMILARITY_THRESHOLD # less similar because the == is already done earlier
         
         return 0 # We covered all the potential cases. By this point it's NOT similar.
@@ -143,6 +166,7 @@ events = [Event(event) for event in fetch_all_events(cursor)]
 
 for result in spider.results:
     event = Event(result)
+    result = Event(result)
 
     # Doesn't exist? Create it:
     if event not in events:
@@ -157,19 +181,6 @@ for result in spider.results:
 
 
 print(events)
-
-# TODO:
-'''
-1. [X] have a class for storing the results/events in objects that we can compare using __eq__().
-2. [X] inside __eq__(), compare:
-    * [X] the name with rapidfuzz
-    * [X] the years (those will be properties of a certain custom type that can be either a year range or a year)
-    * maybe the description
-3. if it's similar over a certain threshold:
-     INSERT
-   else: 
-     UPDATE
-'''
 
 
 event = Event({
