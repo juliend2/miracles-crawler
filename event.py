@@ -6,6 +6,10 @@ class Event:
     SIMILARITY_THRESHOLD = 90
 
     def __init__(self, props):
+        self.id = 0
+        if 'id' in props:
+            self.id = props['id']
+
         self.category = props['category']
         self.name = props['name'].strip()
         self.year = props['year']

@@ -1,2 +1,4 @@
 RapidFuzz==3.10.0
 Scrapy==2.11.2
+python-dotenv==1.0.1
+openai==1.47.1

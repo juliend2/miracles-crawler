@@ -1,1 +1,8 @@
+# Env
+.env
+
+# Data stuff
 data.sqlite3
+
+# Python stuff
+*.pyc
