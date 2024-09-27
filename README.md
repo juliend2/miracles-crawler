@@ -1,6 +1,11 @@
 README
 ======
 
+TODO
+----
+
+- [x] Retry mechanism for enrichment script with GPT-4o
+
 Data enrichment
 ---------------
 
