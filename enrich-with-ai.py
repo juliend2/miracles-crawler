@@ -2,6 +2,7 @@ import sqlite3
 import pprint
 import json
 import os
+import textwrap
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -59,20 +60,30 @@ client = OpenAI(
   project='proj_mhC0PhH66KlKKnyLVbEFFtew',
 )
 
-def ask_and_print(client, description, trying_again=False):
-    demands = get_demands_from_mary(client, description, trying_again)
+def ask_and_print(client, event: Event, trying_again=False):
+    demands = get_demands_from_mary(client, event.description, trying_again)
     print(
-        f'''
-        Description:
-        > {description}'''
+        
+        textwrap.fill(
+            textwrap.dedent(
+                f'''Description:                             
+
+                    > {str.replace(event.description, ' .', '.')}
+                    ({event.category})'''
+            ),
+            width=50,
+            initial_indent='',
+            subsequent_indent='    ',
+        )
     )
+    
     pprint.pprint(demands)
     return demands
 
 for event in events:
     take = 0
     while True:
-        demands = ask_and_print(client, event.description, trying_again=take>0)
+        demands = ask_and_print(client, event, trying_again=take>0)
         answer = input("Do you agree with this answer? (Y/n): ").strip().lower()
         if answer == 'y':
             print("Cool! Let's save it, then.")
