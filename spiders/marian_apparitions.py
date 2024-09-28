@@ -1,4 +1,8 @@
 import scrapy
+import wikipediaapi
+import os
+import re
+import pickle
 
 class Spider(scrapy.Spider):
     name = "quotes"
@@ -7,6 +11,7 @@ class Spider(scrapy.Spider):
 
     def start_requests(self):
         absolute_path = os.path.abspath('test-data/list-of-marian-apparitions.html')
+        self.wiki = wikipediaapi.Wikipedia('MarianApparitions (julien@desrosiers.org)', 'en')
         
         urls = [
             f'file://{absolute_path}',
@@ -23,6 +28,18 @@ class Spider(scrapy.Spider):
                 if not meta_tr.css(year_selector).get():
                     continue
                 
+                wikipedia_section_title = ''
+                try:
+                    full_article_url = meta_tr.css('th[data-sort-value]').css('a').attrib['href']
+                except (IndexError, KeyError):
+                    full_article_url = None
+
+                if full_article_url and self.url_leads_to_wikipedia(full_article_url):
+                    full_article_url_slug = os.path.basename(full_article_url)
+                    # wikipedia_section_title = full
+                    full_article = self.get_article_content(full_article_url_slug)
+                    # full_article.sections_by_title()
+                
                 result = {
                     'category': meta_tr.css('td:first-child[title]').attrib['title'].strip(),
                     'name': self.extract_text_with_spaces(meta_tr.css('th[data-sort-value]')),
@@ -30,6 +47,7 @@ class Spider(scrapy.Spider):
                     'description': self.remove_footnotes(
                         self.extract_text_with_spaces(meta_tr.xpath('following-sibling::tr[1]').css('td.description'))
                     ),
+                    'wikipedia_section_title': wikipedia_section_title,
                     # 'tags': quote.css('div.tags a.tag::text').getall(),
                 }
                 self.results.append(result)
@@ -44,3 +62,24 @@ class Spider(scrapy.Spider):
             part.strip() if part != '<br>' else ' ' for part in parts
         )
         return text_with_spaces
+    
+    def url_leads_to_wikipedia(self, url):
+        return url[0:1] == '/' and '/wiki' in url
+
+    def get_article_content(self, wikipedia_article_slug):
+        full_article = None
+
+        article_pickle_file_path = f'./article_pickles/{wikipedia_article_slug}.pkl'
+        if os.path.exists(article_pickle_file_path):
+            # Get it from cache:
+            with open(article_pickle_file_path, 'rb') as f:
+                return pickle.load(f)
+
+        if full_article is None:
+            full_article = self.wiki.page(wikipedia_article_slug)
+            # Cache it:
+            with open(article_pickle_file_path, 'wb') as f:
+                pickle.dump(full_article, f)
+            return full_article
+
+        return None

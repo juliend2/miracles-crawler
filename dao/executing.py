@@ -1,15 +1,29 @@
 from event import Event
 
 def maybe_create_events_table(cursor):
-    cursor.execute('''CREATE TABLE IF NOT EXISTS events
-                    (id INTEGER PRIMARY KEY, category TEXT, name TEXT, year INTEGER, description TEXT)''')
+    cursor.execute(
+        '''CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY,
+            category TEXT,
+            name TEXT,
+            year INTEGER,
+            description TEXT,
+            wikipedia_section_title TEXT
+        )''')
 
 def insert_event(conn, event: Event):
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO events (category, name, year, description)
-        VALUES (?, ?, ?, ?)
-        ''', (event.category, event.name, event.year, event.description))
+        INSERT INTO events (category, name, year, description, wikipedia_section_title)
+        VALUES (?, ?, ?, ?, ?)
+        ''', (
+            event.category,
+            event.name,
+            event.year,
+            event.description,
+            event.wikipedia_section_title
+        )
+    )
     conn.commit()
 
 def update_event(conn, event: Event):

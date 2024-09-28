@@ -14,6 +14,7 @@ def all_events_without_marys_demands(cursor):
         FROM        events AS e
         LEFT JOIN   marys_requests AS mr ON mr.event_id = e.id 
         WHERE       mr.id IS NULL
+          AND       e.category LIKE 'Approved%'
         ''')
     columns = [column[0] for column in cursor.description]  # Get column names
     rows = cursor.fetchall()

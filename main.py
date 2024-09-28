@@ -12,6 +12,7 @@ from event import Event
 # FETCH THE DATA
 # ==============
 
+
 process = CrawlerProcess()
 process.crawl(MarianApparitions)
 process.start()
