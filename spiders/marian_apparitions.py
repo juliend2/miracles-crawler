@@ -28,27 +28,27 @@ class Spider(scrapy.Spider):
                 if not meta_tr.css(year_selector).get():
                     continue
                 
-                wikipedia_section_title = ''
+                description = self.remove_footnotes(
+                    self.extract_text_with_spaces(meta_tr.xpath('following-sibling::tr[1]').css('td.description'))
+                )
+
                 try:
                     full_article_url = meta_tr.css('th[data-sort-value]').css('a').attrib['href']
                 except (IndexError, KeyError):
                     full_article_url = None
 
+                full_article = None
                 if full_article_url and self.url_leads_to_wikipedia(full_article_url):
                     full_article_url_slug = os.path.basename(full_article_url)
-                    # wikipedia_section_title = full
                     full_article = self.get_article_content(full_article_url_slug)
-                    # full_article.sections_by_title()
+                    if full_article.text.strip() != '':
+                        description = full_article.text
                 
                 result = {
                     'category': meta_tr.css('td:first-child[title]').attrib['title'].strip(),
                     'name': self.extract_text_with_spaces(meta_tr.css('th[data-sort-value]')),
                     'year': meta_tr.css(year_selector).get().strip(),
-                    'description': self.remove_footnotes(
-                        self.extract_text_with_spaces(meta_tr.xpath('following-sibling::tr[1]').css('td.description'))
-                    ),
-                    'wikipedia_section_title': wikipedia_section_title,
-                    # 'tags': quote.css('div.tags a.tag::text').getall(),
+                    'description': description,
                 }
                 self.results.append(result)
                 yield result
@@ -73,7 +73,10 @@ class Spider(scrapy.Spider):
         if os.path.exists(article_pickle_file_path):
             # Get it from cache:
             with open(article_pickle_file_path, 'rb') as f:
-                return pickle.load(f)
+                try:
+                    return pickle.load(f)
+                except Exception as e:
+                    print(e)
 
         if full_article is None:
             full_article = self.wiki.page(wikipedia_article_slug)

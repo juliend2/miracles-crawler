@@ -14,7 +14,6 @@ class Event:
         self.name = props['name'].strip()
         self.year = props['year']
         self.description = props['description']
-        self.wikipedia_section_title = props['wikipedia_section_title']
 
     def __repr__(self) -> str:
         return f'{self.name} ({self.year})'

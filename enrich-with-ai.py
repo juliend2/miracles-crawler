@@ -1,7 +1,8 @@
-import sqlite3
-import pprint
 import json
 import os
+import pprint
+import re
+import sqlite3
 import textwrap
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -60,18 +61,22 @@ client = OpenAI(
   project='proj_mhC0PhH66KlKKnyLVbEFFtew',
 )
 
-def ask_and_print(client, event: Event, trying_again=False):
+def ask_and_print(client, event: Event, trying_again=True):
     demands = get_demands_from_mary(client, event.description, trying_again)
     print(
-        
         textwrap.fill(
             textwrap.dedent(
                 f'''Description:                             
 
                     > {str.replace(event.description, ' .', '.')}
-                    ({event.category})'''
+
+                    ({event.name})
+
+                    ({event.category})
+                    
+                    '''
             ),
-            width=50,
+            width=150,
             initial_indent='',
             subsequent_indent='    ',
         )
@@ -81,10 +86,9 @@ def ask_and_print(client, event: Event, trying_again=False):
     return demands
 
 for event in events:
-    take = 0
     while True:
-        demands = ask_and_print(client, event, trying_again=take>0)
-        answer = input("Do you agree with this answer? (Y/n): ").strip().lower()
+        demands = ask_and_print(client, event, trying_again=True)
+        answer = input("Do you agree with this answer? (Y/n/s/0,[...]): ").strip().lower()
         if answer == 'y':
             print("Cool! Let's save it, then.")
             if demands == None:
@@ -94,8 +98,16 @@ for event in events:
             break  # Exit the loop if the answer is 'Y'
         elif answer == 'n':
             print("Let's try another time...")
+
+        # Expression like 0,2 or 1,2,3
+        elif re.match(r'^\d[\d,]*$', answer):
+            for index in answer.split(','):
+                executing.insert_marys_request(conn, event.id, demands[int(index)])
+            break
+        elif answer == 's':
+            print('Skipping this one.')
+            break
         else:
             print("Invalid input, please enter 'Y' for yes or 'n' for no.")
-        take += 1
     
     # exit()

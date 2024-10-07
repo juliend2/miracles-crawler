@@ -21,7 +21,7 @@ def insert_event(conn, event: Event):
             event.name,
             event.year,
             event.description,
-            event.wikipedia_section_title
+            ''
         )
     )
     conn.commit()

@@ -12,6 +12,13 @@ from event import Event
 # FETCH THE DATA
 # ==============
 
+'''
+CREATE TABLE external_sources (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	event_id INTEGER NOT NULL,
+	source_url TEXT
+);
+'''
 
 process = CrawlerProcess()
 process.crawl(MarianApparitions)
