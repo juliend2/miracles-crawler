@@ -36,9 +36,6 @@ def get_demands_from_mary(api_client, description, trying_again=False):
             '''
         }
     ]
-    # TODO:
-    # WHEN we pass the param trying_again = True, we add another element to the conversation, to insist for the system to
-    # try again, and that we don't accept an empty array.
 
     if trying_again:
         messages.append({"role": "assistant", "content": "[]"})

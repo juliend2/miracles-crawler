@@ -8,7 +8,8 @@ def maybe_create_events_table(cursor):
             name TEXT,
             year INTEGER,
             description TEXT,
-            wikipedia_section_title TEXT
+            wikipedia_section_title TEXT,
+            image_filename TEXT
         )''')
 
 def insert_event(conn, event: Event):
